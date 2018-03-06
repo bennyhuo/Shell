@@ -1,11 +1,11 @@
 # Shell
 Android Shell run without root. Just like adb shell does.
 
-A server runs in the background with shell permissions while client app should connect to it and send shell cmd to it though a socket connection.
+A server runs in the background with shell permissions while client app should connect and send shell cmd to it though a socket connection.
 
-The shell session closes until the connect disconnect.
+The shell session closes until the socket connection disconnect.
 
-You can achieve varieties of goals with this, e.g. take a bugreport with pc.
+You can achieve varieties of goals with this, e.g. take a bugreport without pc.
 
 # Thanks
 
