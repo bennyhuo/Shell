@@ -64,6 +64,9 @@ class ShellServer(name: String) : Thread(name) {
                 shellProcess.outputStream.write("$it\n".toByteArray())
                 shellProcess.outputStream.flush()
             }
+            warn("Destroy shell process.")
+            shellProcess.outputStream.close()
+            shellProcess.destroy()
         }
 
         executor.execute {
@@ -72,6 +75,8 @@ class ShellServer(name: String) : Thread(name) {
                 socket.getOutputStream().write("$it\n".toByteArray())
                 socket.getOutputStream().flush()
             }
+            warn("Close socket connection.")
+            socket.close()
         }
     }
 }
