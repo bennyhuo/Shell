@@ -26,6 +26,7 @@ import java.util.concurrent.Executors
  */
 
 private const val SERVER_PORT = 62741
+private const val CMD_EXIT = "exit\n"
 
 class ShellServer(name: String) : Thread(name) {
     private val executor = Executors.newCachedThreadPool()
@@ -57,26 +58,44 @@ class ShellServer(name: String) : Thread(name) {
     @Throws(IOException::class)
     private fun process(socket: Socket) {
         val shellProcess = ProcessBuilder("sh").start()
-
-        executor.execute {
-            socket.getInputStream().bufferedReader().forEachLine {
-                debug("[ShellInput] $it")
-                shellProcess.outputStream.write("$it\n".toByteArray())
-                shellProcess.outputStream.flush()
+        val safeClose = fun(block: () -> Unit) {
+            try {
+                block()
+            } catch (e: Exception) {
+            } finally {
+                try {
+                    shellProcess.destroy()
+                    socket.close()
+                } catch (e: Exception) {
+                }
             }
-            warn("Destroy shell process.")
-            shellProcess.outputStream.close()
-            shellProcess.destroy()
         }
 
         executor.execute {
-            shellProcess.inputStream.bufferedReader().forEachLine {
-                warn("[ShellOut] $it")
-                socket.getOutputStream().write("$it\n".toByteArray())
-                socket.getOutputStream().flush()
+            safeClose {
+                socket.getInputStream().bufferedReader().forEachLine {
+                    debug("[ShellInput] $it")
+                    if (it.equals(CMD_EXIT)){
+                        shellProcess.outputStream.close()
+                    } else {
+                        shellProcess.outputStream.write("$it\n".toByteArray())
+                        shellProcess.outputStream.flush()
+                    }
+                }
+                shellProcess.outputStream.close()
             }
-            warn("Close socket connection.")
-            socket.close()
+        }
+
+        executor.execute {
+            safeClose {
+                shellProcess.inputStream.bufferedReader().forEachLine {
+                    warn("[ShellOut] $it")
+                    socket.getOutputStream().write("$it\n".toByteArray())
+                    socket.getOutputStream().flush()
+                }
+                shellProcess.destroy()
+                warn("Destroy shell process.")
+            }
         }
     }
 }
