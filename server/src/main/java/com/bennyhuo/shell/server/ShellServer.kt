@@ -26,7 +26,6 @@ import java.util.concurrent.Executors
  */
 
 private const val SERVER_PORT = 62741
-private const val CMD_EXIT = "exit\n"
 
 class ShellServer(name: String) : Thread(name) {
     private val executor = Executors.newCachedThreadPool()
@@ -62,11 +61,13 @@ class ShellServer(name: String) : Thread(name) {
             try {
                 block()
             } catch (e: Exception) {
+                e.printStackTrace()
             } finally {
                 try {
                     shellProcess.destroy()
                     socket.close()
                 } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -75,12 +76,8 @@ class ShellServer(name: String) : Thread(name) {
             safeClose {
                 socket.getInputStream().bufferedReader().forEachLine {
                     debug("[ShellInput] $it")
-                    if (it.equals(CMD_EXIT)){
-                        shellProcess.outputStream.close()
-                    } else {
-                        shellProcess.outputStream.write("$it\n".toByteArray())
-                        shellProcess.outputStream.flush()
-                    }
+                    shellProcess.outputStream.write("$it\n".toByteArray())
+                    shellProcess.outputStream.flush()
                 }
                 shellProcess.outputStream.close()
             }
@@ -93,7 +90,6 @@ class ShellServer(name: String) : Thread(name) {
                     socket.getOutputStream().write("$it\n".toByteArray())
                     socket.getOutputStream().flush()
                 }
-                shellProcess.destroy()
                 warn("Destroy shell process.")
             }
         }

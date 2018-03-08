@@ -55,8 +55,9 @@ class Shell : Closeable {
             socket.connect(InetSocketAddress("127.0.0.1", 62741))
             try {
                 socket.getOutputStream().write("$cmd\n".toByteArray())
-                socket.getOutputStream().write("exit\n".toByteArray())
                 socket.getOutputStream().flush()
+                //使用这个可以优雅的只关闭输出；如果直接关闭流，会同时把socket也关掉
+                socket.shutdownOutput()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -123,7 +124,7 @@ class Shell : Closeable {
         if (!isOpen) return
         isOpen = false
         try {
-            shellSocket!!.getOutputStream().close()
+            shellSocket!!.shutdownOutput()
         } catch (e: Exception) {
             e.printStackTrace()
             onClosed()
