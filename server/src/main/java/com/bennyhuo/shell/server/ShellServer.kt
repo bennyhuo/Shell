@@ -26,6 +26,7 @@ import java.util.concurrent.Executors
  */
 
 private const val SERVER_PORT = 62741
+private const val CMD_EXIT = "exit"
 
 class ShellServer(name: String) : Thread(name) {
     private val executor = Executors.newCachedThreadPool()
@@ -54,44 +55,54 @@ class ShellServer(name: String) : Thread(name) {
         }
     }
 
-    @Throws(IOException::class)
     private fun process(socket: Socket) {
-        val shellProcess = ProcessBuilder("sh").start()
-        val safeClose = fun(block: () -> Unit) {
+        val shellProcess = ProcessBuilder("sh").redirectErrorStream(true).start()
+
+        executor.execute {
             try {
-                block()
+                socket.getInputStream().bufferedReader().forEachLine {
+                    debug("[ShellInput] $it")
+                    if (it == CMD_EXIT) {
+                        shellProcess.outputStream.close()
+                    } else {
+                        shellProcess.outputStream.write("$it\n".toByteArray())
+                        shellProcess.outputStream.flush()
+                    }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
-            } finally {
+                warn("Failed to read from client or write to shell process.")
                 try {
                     shellProcess.destroy()
                     socket.close()
                 } catch (e: Exception) {
+                    warn("Failed to close socket or destroy shell process.")
                     e.printStackTrace()
                 }
             }
         }
 
         executor.execute {
-            safeClose {
-                socket.getInputStream().bufferedReader().forEachLine {
-                    debug("[ShellInput] $it")
-                    shellProcess.outputStream.write("$it\n".toByteArray())
-                    shellProcess.outputStream.flush()
-                }
-                shellProcess.outputStream.close()
-            }
-        }
-
-        executor.execute {
-            safeClose {
+            try {
                 shellProcess.inputStream.bufferedReader().forEachLine {
-                    warn("[ShellOut] $it")
+                    debug("[ShellOutput] $it")
                     socket.getOutputStream().write("$it\n".toByteArray())
                     socket.getOutputStream().flush()
                 }
-                warn("Destroy shell process.")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                warn("Failed to read from shell process or write to client.")
+            } finally {
+                try {
+                    shellProcess.destroy()
+                    socket.close()
+                } catch (e: Exception) {
+                    warn("Failed to close socket or destroy shell process.")
+                    e.printStackTrace()
+                }
             }
+            warn("Destroy shell process.")
         }
     }
 }
+

@@ -1,6 +1,7 @@
 package com.bennyhuo.shell.api
 
 import java.io.Closeable
+import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.concurrent.ExecutorService
@@ -9,6 +10,8 @@ import java.util.concurrent.Executors
 /**
  * Created by benny on 03/03/2018.
  */
+private const val CMD_EXIT = "exit"
+
 class Shell : Closeable {
     private var executor: ExecutorService? = null
     private var shellSocket: Socket? = null
@@ -55,9 +58,8 @@ class Shell : Closeable {
             socket.connect(InetSocketAddress("127.0.0.1", 62741))
             try {
                 socket.getOutputStream().write("$cmd\n".toByteArray())
+                socket.getOutputStream().write("$CMD_EXIT\n".toByteArray())
                 socket.getOutputStream().flush()
-                //使用这个可以优雅的只关闭输出；如果直接关闭流，会同时把socket也关掉
-                socket.shutdownOutput()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -121,14 +123,8 @@ class Shell : Closeable {
     }
 
     override fun close() {
-        if (!isOpen) return
+        execute(CMD_EXIT)
         isOpen = false
-        try {
-            shellSocket!!.shutdownOutput()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            onClosed()
-        }
     }
 
     private fun onClosed() {
@@ -157,5 +153,25 @@ class Shell : Closeable {
             })
             shell.executeOnce(cmd)
         }
+
+        fun run(cmd: String, file: File) {
+            val shell = Shell()
+            shell.addListener(object : ShellListener {
+
+                val writer = file.bufferedWriter()
+
+                override fun onResult(newLine: String) {
+                    writer.append(newLine)
+                            .append('\n')
+                }
+
+                override fun onClosed() {
+                    writer.close()
+                    warn("ShellOutput File: ${file.length()}")
+                }
+            })
+            shell.executeOnce(cmd)
+        }
+
     }
 }

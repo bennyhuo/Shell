@@ -8,6 +8,7 @@ import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.view.KeyEvent
 import kotlinx.android.synthetic.main.activity_shell.*
+import java.io.File
 
 /**
  * Created by benny on 03/03/2018.
@@ -18,18 +19,17 @@ class ShellNoSessionActivity : AppCompatActivity(){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_shell)
-
+        cmd.setText("bugreport")
         cmd.setOnKeyListener { v, keyCode, event ->
             if (event.action == KeyEvent.ACTION_UP && keyCode == KeyEvent.KEYCODE_ENTER) {
                 val cmdText = "${cmd.text}\n"
-                cmd.setText("")
+                cmd.setText("bugreport")
                 val spannableString = SpannableString("$ $cmdText")
                 val foregroundColorSpan = ForegroundColorSpan(Color.RED)
                 spannableString.setSpan(foregroundColorSpan, 0, spannableString.length, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE)
                 result.append(spannableString)
-                Shell.run(cmdText){
-                    handler.post { result.append(it) }
-                }
+                Shell.run(cmdText, File(externalCacheDir, "bugreport00.txt"))
+
                 true
             } else {
                 false
